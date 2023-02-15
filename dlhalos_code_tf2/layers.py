@@ -61,7 +61,6 @@ class ConvLayers:
         elif pool == "max":
             x = keras.layers.MaxPooling3D(pool_size=pool_size, strides=None, padding="same",
                                           data_format=data_format)(x)
-            print('adding max pooling')
         else:
             pass
         return x
@@ -97,11 +96,9 @@ class FCCLayers:
             x = keras.layers.BatchNormalization(axis=-1)(x)
 
         if relu is True:
-            print("leaky relu")
             x = keras.layers.LeakyReLU(alpha=alpha_relu)(x)
 
         if dropout is not None:
-            print("using dropout")
             x = keras.layers.Dropout(dropout, seed=self.seed)(x)
 
         if alpha_dropout is not None:
