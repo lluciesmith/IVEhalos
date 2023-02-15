@@ -44,7 +44,6 @@ class Architecture:
         _layers_names = np.array(all_layer_names)[["[" in l for l in all_layer_names]]
 
         for i, layer in enumerate(layer_type):
-            print(layer)
             layer_idx = all_layer_names.index("[" + layer_type[i] + "]")
             if layer_idx == len(all_layer_names) - 1 or layer == "last":
                 layer_params = all_layer_names[layer_idx + 1:]
@@ -56,7 +55,6 @@ class Architecture:
             for row in layer_params:
                 attr, label = get_attribute_label_from_row(row, self.dtypes)
                 result[layer][attr] = label
-            print("done layer " + layer)
 
         return result
 
