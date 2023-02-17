@@ -72,22 +72,25 @@ class AbstractBaseProfile(ABC):
         if use_analytical_jac is not None:
             use_analytical_jac = cls.jacobian_profile_functional_static
 
-        profile_lower_bound = np.amin(profile_data)
-        profile_upper_bound = np.amax(profile_data)
-
-        radial_lower_bound = np.amin(radial_data)
-        radial_upper_bound = np.amax(radial_data)
-
+        print(bounds)
         if bounds is None:
+            profile_lower_bound = np.amin(profile_data)
+            profile_upper_bound = np.amax(profile_data)
+            radial_lower_bound = np.amin(radial_data)
+            radial_upper_bound = np.amax(radial_data)
             if cls.num_params() > 2:
                 bounds = ([profile_lower_bound, radial_lower_bound, 0.], [profile_upper_bound, radial_upper_bound, 0.5])
             else:
                 bounds = ([profile_lower_bound, radial_lower_bound], [profile_upper_bound, radial_upper_bound])
-
+        print(bounds)
         if log is True:
             function = cls.log_profile_functional_static
-            err = [(1/np.log(10)) * profile_err /profile_data if profile_err is not None else None][0]
+            err = [profile_err / (profile_data * np.log(10)) if profile_err is not None else None][0]
             data = np.log10(profile_data)
+            if use_analytical_jac is not None:
+                use_analytical_jac = lambda x, p1, p2: (cls.jacobian_profile_functional_static(x, p1, p2).transpose()
+                                                        /(cls.profile_functional_static(x, p1, p2) * np.log(10))).transpose()
+
         else:
             function = cls.profile_functional_static
             err = profile_err
@@ -104,9 +107,9 @@ class AbstractBaseProfile(ABC):
                                            check_finite=True,
                                            jac=use_analytical_jac,
                                            method='trf',
-                                           ftol=1e-10,
-                                           xtol=1e-10,
-                                           gtol=1e-10,
+                                           ftol=1e-14,
+                                           xtol=1e-14,
+                                           gtol=1e-14,
                                            x_scale=1.0,
                                            loss='linear',
                                            f_scale=1.0,
@@ -138,11 +141,13 @@ class AbstractBaseProfile(ABC):
         return list(self._parameters.keys())
 
     @staticmethod
-    def chi_squared(observed, expected, log=True):
+    def chi_squared(observed, expected, err=None, log=True):
         if log:
             observed = np.log10(observed)
             expected = np.log10(expected)
-        return np.sum((observed - expected) ** 2 / expected)
+        if err is None:
+            err = np.sqrt(expected)
+        return np.sum((observed - expected) ** 2 / err ** 2)
 
 
 class NFWprofile(AbstractBaseProfile):
