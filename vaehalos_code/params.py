@@ -1,4 +1,5 @@
 import numpy as np
+from dlhalos_code_tf2 import custom_regularizers as reg
 
 
 class Params(object):
@@ -7,13 +8,14 @@ class Params(object):
         Creates attributes for every row element of the `input_file_name`.
         :param input_file_name: rows in format `attribute (type): label`
         """
-        dtypes = {'str': str, 'float': float, 'int': int, 'tuple': tuple, 'list': list}
+        dtypes = {'str': str, 'float': float, 'int': int, 'tuple': tuple, 'list': list, 'obj': object}
+        dispatcher = {}
 
         with open(input_file_name, 'r') as input_file:
             names_list = [line.strip() for line in input_file if line.strip() and not line.startswith('#')]
 
         for row in names_list:
-            attr, label = get_attribute_label_from_row(row, dtypes)
+            attr, label = get_attribute_label_from_row(row, dtypes, dispatcher)
             self.__dict__[attr] = label
 
 
@@ -23,10 +25,12 @@ class Architecture:
         Creates dictionaries with model architecture parameters.
         :param input_file_name: rows in format `attribute (type): label`
         """
-        self.dtypes = {'str': str, 'float': float, 'int': int, 'tuple': tuple, 'list': list}
+        self.dtypes = {'str': str, 'float': float, 'int': int, 'tuple': tuple, 'list': list, 'obj': None}
 
         with open(input_file, "r") as input_file:
             names_list = [line.strip() for line in input_file if line.strip() and not line.startswith('#')]
+
+        self.dispatcher = {'reg.l2_norm': reg.l1_norm, 'reg.l1_norm': reg.l1_norm}
 
         convs = [name.strip("[]") for name in names_list if "conv" in name]
         param_conv = {key: {} for key in convs}
@@ -53,13 +57,13 @@ class Architecture:
                 layer_params = all_layer_names[layer_idx + 1:next_layer_idx]
 
             for row in layer_params:
-                attr, label = get_attribute_label_from_row(row, self.dtypes)
+                attr, label = get_attribute_label_from_row(row, self.dtypes, self.dispatcher)
                 result[layer][attr] = label
 
         return result
 
 
-def get_attribute_label_from_row(row, dtypes):
+def get_attribute_label_from_row(row, dtypes, dispatcher):
     attr = row[: row.find('(')].strip()
     label = row[row.find(':') + 1:].strip(' "').replace("'", "")
     type_attr = row[row.find('(') + 1: row.find(')')].strip()
@@ -76,8 +80,11 @@ def get_attribute_label_from_row(row, dtypes):
         label = dtypes[type0](ls_dtype1)
 
     else:
-        # transform `label` into data type `type_attr`
-        label = True if label == "True" else False if label == "False" else None if label == "None" else dtypes[type_attr](label)
+        if type_attr == "obj":
+            label = dispatcher[label[:label.find('(')]](float(label[label.find('(') + 1: -1]))
+        else:
+            # transform `label` into data type `type_attr`
+            label = True if label == "True" else False if label == "False" else None if label == "None" else dtypes[type_attr](label)
 
     if "thresholds" in attr:
         label = np.array(label)
